@@ -246,6 +246,46 @@ impl FastCWT
         });
         return buffer.lock().unwrap().take().unwrap();
     }
+    pub fn icwt(&mut self, num: usize, transform: &[rustfft::num_complex::Complex<f64>], scales: Scales) -> Vec<f64>
+    {
+        // Find nearest power of 2
+        let newsize = num.next_power_of_two();
+        let mut buffer = vec![];
+
+        // Copy transform to new buffer
+        for data in transform {
+            buffer.push(*data);
+        }
+
+        let mut planner = rustfft::FftPlanner::new();
+
+        // Generate mother wavelet function
+        self.wavelet.generate(newsize);
+
+        let mut reconstruction = vec![rustfft::num_complex::Complex::new(0.0, 0.0); newsize];
+
+        for i in 0..scales.num_scales {
+            let scale = scales.scales[i];
+            let mut current = buffer.clone();
+
+            // Multiply with the wavelet's representation in frequency domain
+            self.daughter_wavelet_multiplication(&mut current, &self.wavelet.mother, scale, num, self.wavelet.imag_freq, self.wavelet.double_sided);
+
+            // Perform inverse FFT on the result
+            planner.plan_fft_inverse(current.len()).process(&mut current);
+
+            // Accumulate to the reconstructed signal
+            for n in 0..newsize {
+                reconstruction[n] += current[n];
+            }
+        }
+
+        // Normalize and extract the real part for the final reconstruction
+        let normalization_factor = 1.0 / scales.num_scales as f64;
+        let result: Vec<f64> = reconstruction.iter().map(|&x| x.re * normalization_factor).collect();
+
+        result
+    }
     fn daughter_wavelet_multiplication(& self, buffer : & mut [rustfft::num_complex::Complex<f64>], mother : &[f64], scale : f64, i_size : usize, imaginary : bool, doublesided : bool)
     {
         let endpoint = std::cmp::min((i_size as f64 / 2.0) as usize, (i_size as f64 * 2.0 / scale) as usize);
