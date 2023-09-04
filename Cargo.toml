@@ -1,7 +1,7 @@
 [package]
 name = "fastcwt"
 version = "0.1.7"
-authors = ["Minjae Kim <minjaekim@mkaudio.company>"]
+authors = ["Minjae Kim <minjaekim@mkaudio.company>, Robert Pickle"]
 description = "Rust-lang Continuous Wavelet Transform(CWT) library inspired by fCWT."
 documentation = "https://docs.rs/fastcwt"
 readme = "README.md"
@@ -18,6 +18,12 @@ edition = "2021"
 rustfft = "6.1.0"
 rayon = "1.7.0"
 mkaudiolibrary = "0.1.12"
+pyo3 = { version = "0.15.1", features = ["extension-module"] }
 
 [dev-dependencies]
 rand = "0.8.5"
+
+[lib]
+name = "fastcwt"
+path = "src/lib.rs"
+crate-type = ["cdylib"]

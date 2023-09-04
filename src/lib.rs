@@ -49,8 +49,9 @@
 
 use rustfft;
 use rayon::prelude::*;
+use pyo3::prelude::*;
 
-/// Scale types selection for Scale object.
+// Scale types selection for Scale object.
 #[derive(PartialEq)]
 pub enum ScaleTypes
 {
@@ -61,7 +62,8 @@ pub enum ScaleTypes
     /// Linear for frequency.
     LinFreq
 }
-/// Morlet wavelet object.
+// Morlet wavelet object.
+#[pyclass]
 pub struct Wavelet
 {
     width : usize,
@@ -70,24 +72,21 @@ pub struct Wavelet
     mother : Vec<f64>,
     fb : f64
 }
-impl Wavelet
-{
-    /// Create a wavelet object.
-    ///
-    /// bandwidth           - bandwidth of the Morlet wavelet
-    pub fn create(bandwidth : f64) -> Wavelet
-    {
-        return Wavelet
-        {
+#[pymethods]
+impl Wavelet {
+    #[new]
+    #[args(bandwidth = "2.0")]
+    fn create(bandwidth : f64) -> Self {
+        Wavelet {
             width : 0,
             imag_freq : false,
             double_sided : false,
             mother : vec![],
             fb : bandwidth
-        }
+            }
     }
-    fn generate(& mut self, size : usize)
-    {
+
+    fn generate(& mut self, size : usize) {
         //Frequency domain, because we only need size. Default scale is always 2;
         self.width = size;
 
@@ -104,7 +103,7 @@ impl Wavelet
     }
 }
 
-/// Scale factor for the wavelet transform.
+// Scale factor for the wavelet transform.
 pub struct Scales
 {
     scales : Box<[f64]>,
@@ -113,17 +112,17 @@ pub struct Scales
 }
 impl Scales
 {
-    /// Create the scale factor for the transform.
-    ///
-    /// st                  - Log | Linear for logarithmic or linear distribution of scales across frequency range
-    ///
-    /// afs                 - Sample frequency
-    ///
-    /// af0                 - Beginning of the frequency range
-    ///
-    /// af1                 - End of the frequency range
-    ///
-    /// af_num              - Number of wavelets to generate across frequency range
+    // Create the scale factor for the transform.
+    //
+    // st                  - Log | Linear for logarithmic or linear distribution of scales across frequency range
+    //
+    // afs                 - Sample frequency
+    //
+    // af0                 - Beginning of the frequency range
+    //
+    // af1                 - End of the frequency range
+    //
+    // af_num              - Number of wavelets to generate across frequency range
     pub fn create(st : ScaleTypes, afs : usize, af0 : f64, af1 : f64, af_num : usize) -> Scales
     {
         let mut scales = Scales
@@ -191,7 +190,8 @@ impl Scales
     }
 }
 
-/// Actual continuous wavelet transform.
+// Actual continuous wavelet transform.
+#[pyclass]
 pub struct FastCWT
 {
     wavelet : Wavelet,
@@ -199,15 +199,15 @@ pub struct FastCWT
 }
 impl FastCWT
 {
-    /// # Arguments
-    /// wavelet             - Wavelet object.
-    ///
-    /// optplan             - Use FFT optimization plans if true.
+    // # Arguments
+    // wavelet             - Wavelet object.
+    //
+    // optplan             - Use FFT optimization plans if true.
     pub fn create(wavelet : Wavelet, optplan : bool) -> FastCWT { return FastCWT { wavelet, use_normalization : optplan, } }
-    /// # Arguments
-    /// input     - Input data in vector format
-    ///
-    /// scales    - Scales object
+    // # Arguments
+    // input     - Input data in vector format
+    //
+    // scales    - Scales object
     pub fn cwt(& mut self, num : usize, input : & [f64], scales : Scales) -> Vec<rustfft::num_complex::Complex<f64>>
     {
         //Find nearest power of 2
@@ -305,4 +305,14 @@ impl FastCWT
             } else { buffer[n].re = buffer[n].re * mother[tmp as usize]; buffer[n].im = buffer[n].im * mother[tmp as usize]; }
         }
     }
+}
+
+
+
+// A Python module implemented in Rust.
+#[pymodule]
+fn fastcwt(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Wavelet>()?;
+    m.add_class::<FastCWT>()?;
+    Ok(())
 }
